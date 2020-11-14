@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-from multiprocessing import Process, Pipe, Lock
+from multiprocessing import Process, Manager, Lock
 import time
+from ctypes import c_char_p
 
-def hoge(input_pipe, lock):
-    print("Start hoge()")
+def hoge(shared_string, lock):
     while True:
-        string = input_pipe.recv()
+        string = shared_string.value
 
         if (string != ""):
             lock.acquire()
-            print(string)
-            input_pipe.send("")
+            print(shared_string.value)
+            shared_string.value = ""
             lock.release()
             print("**************************")
             print("**************************")
@@ -28,17 +28,17 @@ def main():
     print("Start main()")
     lock = Lock()
     
-    hoge_pipe1, hoge_pipe2 = Pipe()
-    hoge_pipe1.send("Hoge")
+    manager = Manager()
+    shared_string = manager.Value(c_char_p, "Hoge")
 
-    hoge_subprocess = Process(target=hoge, args=(hoge_pipe2, lock))
+    hoge_subprocess = Process(target=hoge, args=(shared_string, lock))
     hoge_subprocess.start()
 
     while True:
         lock.acquire()  
         print("main")
-        hoge_pipe1.send("send from main() to hoge()")
-        lock.release()  
+        shared_string.value = "Time:" + str(time.time()) + ", main() to hoge()."
+        lock.release() 
 
         time.sleep(2)
 
